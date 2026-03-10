@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบค้นหาข้อมูลนักเรียน</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- jQuery -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    
+    <!-- Loading Overlay -->
+    <script src="https://cdn.jsdelivr.net/npm/gasparesganga-jquery-loading-overlay@2.1.7/dist/loadingoverlay.min.js"></script>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    
+    <!-- Sweet Alert -->
+    <script src="//cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <!-- Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+        }
+
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .search-highlight {
+            background-color: #fef3c7;
+            color: #92400e;
+            padding: 0 2px;
+            border-radius: 2px;
+            font-weight: 600;
+        }
+        
+        .student-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 4px solid transparent;
+        }
+        
+        .student-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 20px -5px rgba(0, 0, 0, 0.1);
+            border-left-color: var(--primary);
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 640px) {
+            .modal-content {
+                margin: 10px;
+                max-height: calc(100vh - 40px);
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-900">
+
+    <!-- Sticky Header -->
+    <header class="sticky top-0 z-40 bg-white shadow-md border-b-4 border-blue-600">
+        <div class="container mx-auto px-4 py-4 sm:py-6">
+            <div class="flex flex-col items-center sm:flex-row sm:justify-between">
+                <div class="flex items-center gap-3 mb-2 sm:mb-0">
+                    <div class="bg-blue-600 p-2.5 rounded-xl text-white">
+                        <i class="fas fa-graduation-cap text-2xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-bold text-gray-800 leading-tight">ระบบข้อมูลนักเรียน</h1>
+                        <p class="text-xs sm:text-sm text-gray-500 font-medium">Student Information System</p>
+                    </div>
+                </div>
+                <div class="hidden sm:block text-right">
+                    <span id="currentTime" class="text-sm text-gray-400 font-medium"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-6 sm:py-8 max-w-7xl">
+        
+        <!-- Search & Control Section -->
+        <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-6">
+            <div class="flex flex-col gap-4">
+                <div class="relative group">
+                    <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-blue-500"></i>
+                    <input type="text" id="searchInput" 
+                           placeholder="ค้นหาชื่อ, รหัสประจำตัว, หรือชั้นเรียน..." 
+                           class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:outline-none transition-all text-base sm:text-lg">
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2">
+                    <button id="loadDataBtn" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>โหลดข้อมูล</span>
+                    </button>
+                    <button id="clearBtn" class="flex-1 sm:flex-none bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 active:scale-95">
+                        <i class="fas fa-eraser"></i>
+                        <span>ล้าง</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Stats Grid -->
+        <section id="statsSection" class="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6 mb-8">
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 text-center">
+                <div class="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-full mb-3">
+                    <i class="fas fa-users text-lg sm:text-xl"></i>
+                </div>
+                <h3 class="text-xl sm:text-3xl font-bold text-gray-800" id="totalStudents">0</h3>
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">นักเรียนทั้งหมด</p>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 text-center">
+                <div class="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-green-50 text-green-600 rounded-full mb-3">
+                    <i class="fas fa-filter text-lg sm:text-xl"></i>
+                </div>
+                <h3 class="text-xl sm:text-3xl font-bold text-gray-800" id="foundStudents">0</h3>
+                <p class="text-xs sm:text-sm text-gray-500 font-medium">พบผลลัพธ์</p>
+            </div>
+            <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center">
+                <div class="inline-flex items-center justify-center w-12 h-12 bg-purple-50 text-purple-600 rounded-full mb-3">
+                    <i class="fas fa-school text-xl"></i>
+                </div>
+                <h3 class="text-3xl font-bold text-gray-800" id="totalClasses">0</h3>
+                <p class="text-sm text-gray-500 font-medium">จำนวนห้องเรียน</p>
+            </div>
+        </section>
+
+        <!-- Results Header -->
+        <div id="resultsHeader" class="flex items-center justify-between mb-4 hidden">
+            <h2 class="text-lg font-bold text-gray-700 flex items-center gap-2">
+                <i class="fas fa-list-ul text-blue-500"></i>
+                รายชื่อนักเรียน
+            </h2>
+            <div class="flex bg-gray-100 p-1 rounded-lg">
+                <button id="gridViewBtn" class="p-2 rounded-md transition-all bg-white shadow-sm text-blue-600">
+                    <i class="fas fa-th-large"></i>
+                </button>
+                <button id="listViewBtn" class="p-2 rounded-md transition-all text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-list"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Students Display Area -->
+        <div id="studentsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <!-- Cards will be injected here -->
+        </div>
+
+        <!-- Empty / Error States -->
+        <div id="noResults" class="hidden py-16 text-center">
+            <div class="max-w-xs mx-auto">
+                <div class="bg-gray-100 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i class="fas fa-search text-3xl text-gray-400"></i>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">ไม่พบข้อมูลที่ต้องการ</h3>
+                <p class="text-gray-500">ลองใช้คำค้นหาอื่น หรือตรวจสอบความถูกต้องอีกครั้ง</p>
+            </div>
+        </div>
+
+        <div id="initialState" class="py-16 text-center">
+            <div class="max-w-xs mx-auto">
+                <i class="fas fa-cloud-download-alt text-5xl text-blue-200 mb-6"></i>
+                <h3 class="text-lg font-medium text-gray-500">กรุณากดปุ่ม "โหลดข้อมูล" เพื่อเริ่มใช้งาน</h3>
+            </div>
+        </div>
+    </main>
+
+    <!-- Student Detail Modal -->
+    <div id="studentModal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden transform transition-all scale-95 opacity-0" id="modalContent">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white p-6 sm:p-8 relative">
+                <button id="closeModal" class="absolute right-4 top-4 w-10 h-10 flex items-center justify-center rounded-full bg-black/10 hover:bg-black/20 transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+                <div class="flex flex-col sm:flex-row items-center gap-5">
+                    <div id="modalAvatar" class="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center text-3xl font-bold border-2 border-white/30 shadow-inner">?</div>
+                    <div class="text-center sm:text-left">
+                        <h2 class="text-2xl sm:text-3xl font-bold" id="modalStudentName">ชื่อนักเรียน</h2>
+                        <p class="text-blue-100 opacity-90" id="modalStudentId">รหัสประจำตัว</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-6 sm:p-8 overflow-y-auto max-h-[calc(90vh-160px)]">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">ชั้นเรียน</p>
+                        <p class="text-lg font-bold text-gray-800" id="modalClass">-</p>
+                    </div>
+                    <div class="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">เลขที่</p>
+                        <p class="text-lg font-bold text-gray-800" id="modalNumber">-</p>
+                    </div>
+                </div>
+
+                <div class="space-y-3 mb-8">
+                    <div class="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-id-card text-blue-500"></i>
+                            <span class="text-gray-600">รหัสประจำตัว</span>
+                        </div>
+                        <span class="font-bold text-gray-800" id="modalIdDisplay">-</span>
+                    </div>
+                    <div class="flex items-center justify-between p-4 bg-white rounded-xl border border-gray-100">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-calendar-alt text-green-500"></i>
+                            <span class="text-gray-600">ตรวจสอบล่าสุด</span>
+                        </div>
+                        <span class="font-medium text-gray-800 text-sm" id="modalViewDate">-</span>
+                    </div>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <button class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3.5 rounded-xl font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-print"></i>
+                        พิมพ์ข้อมูล
+                    </button>
+                    <button class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-3.5 rounded-xl font-bold transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <i class="fas fa-share-alt"></i>
+                        แชร์
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let studentsData = [];
+        let filteredData = [];
+        let isGridView = true;
+        const API_URL = 'https://script.google.com/macros/s/AKfycbzfGEORbRNgEA4epbj_ofkoZC2LhxlDs7bd4ZrdK9eN3tImu60UqwFNy2WohgOYRNdX/exec';
+
+        // Display current date in header
+        function updateClock() {
+            const now = new Date();
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            $('#currentTime').text(now.toLocaleDateString('th-TH', options));
+        }
+
+        // Fetch data
+        async function loadStudentData() {
+            try {
+                $('#initialState').addClass('hidden');
+                $.LoadingOverlay("show", {
+                    background: "rgba(255, 255, 255, 0.8)",
+                    image: "",
+                    custom: $("<div>", {
+                        class: "flex flex-col items-center",
+                        html: '<i class="fas fa-circle-notch fa-spin text-4xl text-blue-600 mb-3"></i><p class="font-bold text-blue-900">กำลังเข้าถึงฐานข้อมูล...</p>'
+                    })
+                });
+
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error('Network response was not ok');
+                
+                const data = await response.json();
+                
+                if (data && data.length > 0) {
+                    studentsData = data;
+                    filteredData = [...studentsData];
+                    
+                    $('#resultsHeader').removeClass('hidden');
+                    updateStats();
+                    displayStudents(filteredData);
+                    
+                    confetti({
+                        particleCount: 80,
+                        spread: 60,
+                        origin: { y: 0.7 },
+                        colors: ['#2563eb', '#4f46e5', '#10b981']
+                    });
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'โหลดข้อมูลสำเร็จ',
+                        text: `พบข้อมูลนักเรียนทั้งหมด ${data.length} รายการ`,
+                        timer: 2000,
+                        showConfirmButton: false,
+                        position: 'top-end',
+                        toast: true
+                    });
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'เชื่อมต่อล้มเหลว',
+                    text: 'ไม่สามารถดึงข้อมูลได้ในขณะนี้ กรุณาลองใหม่อีกครั้ง'
+                });
+                $('#initialState').removeClass('hidden');
+            } finally {
+                $.LoadingOverlay("hide");
+            }
+        }
+
+        function updateStats() {
+            $('#totalStudents').text(studentsData.length.toLocaleString());
+            $('#foundStudents').text(filteredData.length.toLocaleString());
+            const classes = [...new Set(studentsData.map(s => s['ชั้น']))];
+            $('#totalClasses').text(classes.length);
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            // Logic to get meaningful initial for Thai names
+            const parts = name.split(' ');
+            const mainName = parts.length > 1 ? parts[0].replace(/นาย|นางสาว|เด็กชาย|เด็กหญิง/, '') : name;
+            return mainName.charAt(0);
+        }
+
+        function displayStudents(students) {
+            const container = $('#studentsContainer');
+            container.empty();
+            
+            if (students.length === 0) {
+                $('#noResults').removeClass('hidden');
+                return;
+            }
+            
+            $('#noResults').addClass('hidden');
+            
+            students.forEach((student, index) => {
+                const initial = getInitials(student['ชื่อ - สกุล']);
+                const searchTerm = $('#searchInput').val().toLowerCase();
+                
+                // Text highlighting
+                const highlight = (text) => {
+                    if (!searchTerm) return text;
+                    const regex = new RegExp(`(${searchTerm})`, 'gi');
+                    return text.toString().replace(regex, '<span class="search-highlight">$1</span>');
+                };
+
+                const cardHtml = `
+                    <div class="student-card bg-white rounded-2xl shadow-sm border border-gray-100 p-5 fade-in" style="animation-delay: ${Math.min(index * 0.05, 1)}s">
+                        <div class="flex justify-between items-start mb-4">
+                            <span class="bg-blue-50 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-lg">เลขที่ ${student['เลขที่']}</span>
+                            <span class="bg-gray-50 text-gray-500 text-xs font-bold px-2.5 py-1 rounded-lg">${highlight(student['ชั้น'])}</span>
+                        </div>
+                        
+                        <div class="flex flex-col items-center text-center mb-5">
+                            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center text-white text-2xl font-bold shadow-lg mb-3">
+                                ${initial}
+                            </div>
+                            <h3 class="font-bold text-gray-800 mb-1 leading-tight">${highlight(student['ชื่อ - สกุล'])}</h3>
+                            <p class="text-sm text-gray-400 font-medium">ID: ${highlight(student['รหัสประจำตัว'])}</p>
+                        </div>
+                        
+                        <button class="view-detail-btn w-full bg-blue-50 hover:bg-blue-600 hover:text-white text-blue-600 py-2.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 group" 
+                                onclick='showStudentDetail(${JSON.stringify(student).replace(/'/g, "&apos;")})'>
+                            <span>ดูประวัติ</span>
+                            <i class="fas fa-arrow-right text-xs transition-transform group-hover:translate-x-1"></i>
+                        </button>
+                    </div>
+                `;
+                container.append(cardHtml);
+            });
+        }
+
+        function showStudentDetail(student) {
+            $('#modalStudentName').text(student['ชื่อ - สกุล']);
+            $('#modalStudentId').text(`รหัสประจำตัว: ${student['รหัสประจำตัว']}`);
+            $('#modalClass').text(student['ชั้น']);
+            $('#modalNumber').text(student['เลขที่']);
+            $('#modalIdDisplay').text(student['รหัสประจำตัว']);
+            $('#modalAvatar').text(getInitials(student['ชื่อ - สกุล']));
+            
+            const now = new Date();
+            $('#modalViewDate').text(now.toLocaleString('th-TH'));
+
+            $('#studentModal').removeClass('hidden').addClass('flex');
+            setTimeout(() => {
+                $('#modalContent').removeClass('scale-95 opacity-0').addClass('scale-100 opacity-100');
+            }, 10);
+            $('body').addClass('overflow-hidden');
+        }
+
+        function hideModal() {
+            $('#modalContent').removeClass('scale-100 opacity-100').addClass('scale-95 opacity-0');
+            setTimeout(() => {
+                $('#studentModal').addClass('hidden').removeClass('flex');
+                $('body').removeClass('overflow-hidden');
+            }, 200);
+        }
+
+        $(document).ready(function() {
+            updateClock();
+            setInterval(updateClock, 60000);
+
+            $('#loadDataBtn').click(loadStudentData);
+
+            $('#clearBtn').click(function() {
+                if (studentsData.length === 0) return;
+                Swal.fire({
+                    title: 'ล้างข้อมูล?',
+                    text: "คุณต้องการล้างข้อมูลที่โหลดมาทั้งหมดหรือไม่",
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'ล้างข้อมูล',
+                    cancelButtonText: 'ยกเลิก',
+                    confirmButtonColor: '#ef4444'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        studentsData = [];
+                        filteredData = [];
+                        $('#searchInput').val('');
+                        $('#studentsContainer').empty();
+                        $('#resultsHeader, #statsSection').addClass('hidden');
+                        $('#initialState').removeClass('hidden');
+                        updateStats();
+                    }
+                });
+            });
+
+            $('#searchInput').on('input', function() {
+                const term = $(this).val().toLowerCase().trim();
+                filteredData = studentsData.filter(s => 
+                    s['ชื่อ - สกุล'].toLowerCase().includes(term) ||
+                    s['รหัสประจำตัว'].toString().includes(term) ||
+                    s['ชั้น'].toLowerCase().includes(term)
+                );
+                updateStats();
+                displayStudents(filteredData);
+            });
+
+            $('#closeModal, #studentModal').click(function(e) {
+                if (e.target === this || e.currentTarget === $('#closeModal')[0]) hideModal();
+            });
+
+            // Layout Toggles
+            $('#gridViewBtn').click(function() {
+                $(this).addClass('bg-white shadow-sm text-blue-600').siblings().removeClass('bg-white shadow-sm text-blue-600').addClass('text-gray-500');
+                $('#studentsContainer').removeClass('grid-cols-1').addClass('grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4');
+            });
+
+            $('#listViewBtn').click(function() {
+                $(this).addClass('bg-white shadow-sm text-blue-600').siblings().removeClass('bg-white shadow-sm text-blue-600').addClass('text-gray-500');
+                $('#studentsContainer').removeClass('grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4').addClass('grid-cols-1');
+            });
+        });
+    </script>
+</body>
+</html>
