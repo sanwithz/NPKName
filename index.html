@@ -114,22 +114,18 @@
         
         <!-- Search & Control Section -->
         <section class="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 sm:p-6 mb-6">
-            <div class="flex flex-col gap-4">
-                <div class="relative group">
+            <div class="flex flex-col sm:flex-row gap-4 items-center">
+                <div class="relative group flex-1 w-full">
                     <i class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-blue-500"></i>
                     <input type="text" id="searchInput" 
                            placeholder="ค้นหาชื่อ, รหัสประจำตัว, หรือชั้นเรียน..." 
                            class="w-full pl-11 pr-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-100 focus:border-blue-500 focus:outline-none transition-all text-base sm:text-lg">
                 </div>
                 
-                <div class="flex flex-wrap items-center gap-2">
-                    <button id="loadDataBtn" class="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
-                        <i class="fas fa-sync-alt"></i>
-                        <span>โหลดข้อมูล</span>
-                    </button>
-                    <button id="clearBtn" class="flex-1 sm:flex-none bg-gray-100 hover:bg-gray-200 text-gray-600 px-6 py-3 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 active:scale-95">
+                <div class="flex w-full sm:w-auto">
+                    <button id="clearBtn" class="w-full sm:w-auto bg-gray-100 hover:bg-gray-200 text-gray-600 px-8 py-3.5 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 active:scale-95">
                         <i class="fas fa-eraser"></i>
-                        <span>ล้าง</span>
+                        <span>ล้างการค้นหา</span>
                     </button>
                 </div>
             </div>
@@ -192,10 +188,10 @@
             </div>
         </div>
 
-        <div id="initialState" class="py-16 text-center">
+        <div id="initialState" class="py-16 text-center hidden">
             <div class="max-w-xs mx-auto">
-                <i class="fas fa-cloud-download-alt text-5xl text-blue-200 mb-6"></i>
-                <h3 class="text-lg font-medium text-gray-500">กรุณากดปุ่ม "โหลดข้อมูล" เพื่อเริ่มใช้งาน</h3>
+                <i class="fas fa-exclamation-circle text-5xl text-red-200 mb-6"></i>
+                <h3 class="text-lg font-medium text-gray-500">เกิดข้อผิดพลาดในการโหลดข้อมูล</h3>
             </div>
         </div>
     </main>
@@ -339,7 +335,6 @@
 
         function getInitials(name) {
             if (!name) return '?';
-            // Logic to get meaningful initial for Thai names
             const parts = name.split(' ');
             const mainName = parts.length > 1 ? parts[0].replace(/นาย|นางสาว|เด็กชาย|เด็กหญิง/, '') : name;
             return mainName.charAt(0);
@@ -360,7 +355,6 @@
                 const initial = getInitials(student['ชื่อ - สกุล']);
                 const searchTerm = $('#searchInput').val().toLowerCase();
                 
-                // Text highlighting
                 const highlight = (text) => {
                     if (!searchTerm) return text;
                     const regex = new RegExp(`(${searchTerm})`, 'gi');
@@ -423,29 +417,14 @@
             updateClock();
             setInterval(updateClock, 60000);
 
-            $('#loadDataBtn').click(loadStudentData);
-
             $('#clearBtn').click(function() {
-                if (studentsData.length === 0) return;
-                Swal.fire({
-                    title: 'ล้างข้อมูล?',
-                    text: "คุณต้องการล้างข้อมูลที่โหลดมาทั้งหมดหรือไม่",
-                    icon: 'question',
-                    showCancelButton: true,
-                    confirmButtonText: 'ล้างข้อมูล',
-                    cancelButtonText: 'ยกเลิก',
-                    confirmButtonColor: '#ef4444'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        studentsData = [];
-                        filteredData = [];
-                        $('#searchInput').val('');
-                        $('#studentsContainer').empty();
-                        $('#resultsHeader, #statsSection').addClass('hidden');
-                        $('#initialState').removeClass('hidden');
-                        updateStats();
-                    }
-                });
+                $('#searchInput').val('');
+                filteredData = [...studentsData];
+                updateStats();
+                displayStudents(filteredData);
+                
+                // เลื่อนหน้าจอกลับขึ้นไปด้านบนเพื่อให้เห็นการรีเซ็ต
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             });
 
             $('#searchInput').on('input', function() {
@@ -463,7 +442,6 @@
                 if (e.target === this || e.currentTarget === $('#closeModal')[0]) hideModal();
             });
 
-            // Layout Toggles
             $('#gridViewBtn').click(function() {
                 $(this).addClass('bg-white shadow-sm text-blue-600').siblings().removeClass('bg-white shadow-sm text-blue-600').addClass('text-gray-500');
                 $('#studentsContainer').removeClass('grid-cols-1').addClass('grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4');
@@ -473,6 +451,9 @@
                 $(this).addClass('bg-white shadow-sm text-blue-600').siblings().removeClass('bg-white shadow-sm text-blue-600').addClass('text-gray-500');
                 $('#studentsContainer').removeClass('grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4').addClass('grid-cols-1');
             });
+
+            // เริ่มต้นโหลดข้อมูลทันที
+            loadStudentData();
         });
     </script>
 </body>
